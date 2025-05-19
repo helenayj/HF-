@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>입지 평가 점수 계산기</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 40px; background: #f8f9fa; }
+    h1 { color: #1e88e5; }
+    label { display: block; margin-top: 10px; }
+    input[type="number"] { width: 60px; }
+    button { margin-top: 20px; padding: 10px 20px; background: #1e88e5; color: white; border: none; cursor: pointer; }
+    .result { margin-top: 30px; }
+    canvas { max-width: 600px; }
+  </style>
+</head>
+<body>
+  <h1>입지 평가 점수 계산기</h1>
+  <p>사업장 주변 정보를 입력하면 자동으로 점수가 계산됩니다.</p>
+
+  <label>500m 내 아파트 세대 수 (예: 1200)</label>
+  <input type="number" id="apt" value="0">
+
+  <label>초중고 학교 수 (총합)</label>
+  <input type="number" id="school" value="0">
+
+  <label>지하철역 도보 10분 이내 존재 (1: 있음, 0: 없음)</label>
+  <input type="number" id="subway" value="0">
+
+  <label>생활편의시설 존재 (1: 있음, 0: 없음)</label>
+  <input type="number" id="infra" value="0">
+
+  <label>지역 미분양률 (낮을수록 고점, 0~5%)</label>
+  <input type="number" id="unsold" value="0">
+
+  <label>최근 3년 인구 순이동률 (예: 2.5)</label>
+  <input type="number" id="migration" value="0">
+
+  <label>지자체 도시개발계획 존재 (1: 있음, 0: 없음)</label>
+  <input type="number" id="plan" value="0">
+
+  <label>도로 접면 여부 (1: 있음, 0: 없음)</label>
+  <input type="number" id="road" value="0">
+
+  <label>해당 지역 보증사고 이력 (1: 있음, 0: 없음)</label>
+  <input type="number" id="incident" value="0">
+
+  <button onclick="calculateScore()">점수 계산</button>
+
+  <div class="result">
+    <h2>총점: <span id="total">0</span>점</h2>
+    <canvas id="chart"></canvas>
+  </div>
+
+  <script>
+    function calculateScore() {
+      const apt = parseInt(document.getElementById('apt').value);
+      const school = parseInt(document.getElementById('school').value);
+      const subway = parseInt(document.getElementById('subway').value);
+      const infra = parseInt(document.getElementById('infra').value);
+      const unsold = parseFloat(document.getElementById('unsold').value);
+      const migration = parseFloat(document.getElementById('migration').value);
+      const plan = parseInt(document.getElementById('plan').value);
+      const road = parseInt(document.getElementById('road').value);
+      const incident = parseInt(document.getElementById('incident').value);
+
+      const scores = [
+        apt >= 1000 ? 3 : (apt >= 500 ? 2 : 1),
+        Math.min(school, 3),
+        subway === 1 ? 2 : 0,
+        infra === 1 ? 1 : 0,
+        unsold < 2 ? 3 : (unsold < 4 ? 2 : 1),
+        migration > 0 ? 1 : 0,
+        plan === 1 ? 2 : 0,
+        road === 1 ? 1 : 0,
+        incident === 0 ? 1 : 0
+      ];
+
+      const total = scores.reduce((a, b) => a + b, 0);
+      document.getElementById('total').innerText = total;
+
+      const ctx = document.getElementById('chart').getContext('2d');
+      if (window.myChart) window.myChart.destroy();
+      window.myChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: ["아파트", "학교", "지하철", "편의시설", "미분양률", "인구이동", "개발계획", "도로접면", "사고이력"],
+          datasets: [{
+            label: "항목별 점수",
+            data: scores,
+            backgroundColor: '#42a5f5'
+          }]
+        },
+        options: {
+          scales: {
+            y: { beginAtZero: true, max: 5 }
+          }
+        }
+      });
+    }
+  </script>
+</body>
+</html>
