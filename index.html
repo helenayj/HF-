@@ -2,148 +2,107 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>입지 평가 자동 분석</title>
-  <script defer src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=569dd4860d5c50fec04894c349779ea1&autoload=false&libraries=services"></script>
+  <title>입지 평가 자동화 시스템</title>
+  <script type="text/javascript" src="https://openapi.map.naver.com/openapi/v3/maps.js?ncpClientId=YOUR_CLIENT_ID&submodules=geocoder"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
-    body { font-family: Arial, sans-serif; margin: 40px; background: #f5f5f5; }
-    h1 { color: #1e88e5; }
-    input { padding: 8px; margin-bottom: 10px; width: 300px; }
-    button { padding: 8px 16px; background: #1e88e5; color: white; border: none; cursor: pointer; }
+    body { font-family: Arial, sans-serif; margin: 30px; background: #f4f4f4; }
+    h1 { color: #2b6cb0; }
     #map { width: 100%; height: 400px; margin-top: 20px; }
-    .result { margin-top: 20px; }
+    .result { margin-top: 20px; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    input, button { padding: 8px; font-size: 16px; margin: 5px 0; }
+    .chart-container { width: 400px; margin-top: 30px; }
   </style>
 </head>
 <body>
-  <h1>입지 평가 자동 분석</h1>
-  <input type="text" id="address" placeholder="주소를 입력하세요 (예: 서울 강남구 테헤란로 123)">
-  <button onclick="searchLocation()">분석 시작</button>
+  <h1>신규 건설 사업장 입지 평가 자동화 시스템</h1>
+  <input type="text" id="address" placeholder="사업장 주소를 입력하세요" size="50">
+  <button onclick="searchAddress()">검색</button>
 
   <div id="map"></div>
-  <div class="result">
-    <h2>총점: <span id="score">0</span> / 15</h2>
-    <canvas id="chart"></canvas>
+  <div class="result" id="scoreOutput"></div>
+  <div class="chart-container">
+    <canvas id="scoreChart"></canvas>
   </div>
 
   <script>
-    kakao.maps.load(function () {
-      let map, marker, ps, geocoder;
+    let map;
+    let marker;
 
-      window.searchLocation = function () {
-        const address = document.getElementById("address").value;
-        geocoder = new kakao.maps.services.Geocoder();
-        geocoder.addressSearch(address, function(result, status) {
-          if (status === kakao.maps.services.Status.OK) {
-            const lat = parseFloat(result[0].y);
-            const lng = parseFloat(result[0].x);
-            const location = new kakao.maps.LatLng(lat, lng);
-            showMap(location);
-            analyzeLocation(location);
-          } else {
-            alert("주소를 찾을 수 없습니다.");
-          }
-        });
-      }
-
-      function showMap(latlng) {
-        const container = document.getElementById('map');
-        const options = { center: latlng, level: 3 };
-        map = new kakao.maps.Map(container, options);
-        if (marker) marker.setMap(null);
-        marker = new kakao.maps.Marker({ position: latlng });
-        marker.setMap(map);
-        ps = new kakao.maps.services.Places();
-      }
-
-      function analyzeLocation(latlng) {
-        const scores = { 단지: 0, 인프라: 0, 초등학교: 0 };
-
-        const units = prompt("본건 + 인접 단지 세대수 입력 (숫자):", "1500");
-        const totalUnits = parseInt(units);
-        if (totalUnits > 2000) scores["단지"] = 5;
-        else if (totalUnits > 1000) scores["단지"] = 4;
-        else if (totalUnits > 500) scores["단지"] = 3;
-        else if (totalUnits > 300) scores["단지"] = 2;
-        else scores["단지"] = 1;
-
-        let infraCount = 0;
-        const types = ["이마트", "병원", "행정복지센터"];
-        let completed = 0;
-        types.forEach(keyword => {
-          ps.keywordSearch(keyword, function(data, status) {
-            if (status === kakao.maps.services.Status.OK) {
-              const nearby = data.filter(place => {
-                const d = getDistance(latlng.getLat(), latlng.getLng(), place.y, place.x);
-                return d <= 1000;
-              });
-              infraCount += nearby.length;
-            }
-            completed++;
-            if (completed === types.length) {
-              if (infraCount >= 6) scores["인프라"] = 5;
-              else if (infraCount >= 4) scores["인프라"] = 4;
-              else if (infraCount >= 2) scores["인프라"] = 3;
-              else if (infraCount >= 1) scores["인프라"] = 2;
-              else scores["인프라"] = 1;
-              checkSchool();
-            }
-          }, { location: latlng, radius: 1000 });
-        });
-
-        function checkSchool() {
-          ps.keywordSearch("초등학교", function(data, status) {
-            if (status === kakao.maps.services.Status.OK) {
-              const sorted = data.map(place => ({
-                dist: getDistance(latlng.getLat(), latlng.getLng(), place.y, place.x)
-              })).sort((a, b) => a.dist - b.dist);
-
-              const distance = sorted[0]?.dist || 9999;
-              if (distance <= 300) scores["초등학교"] = 5;
-              else if (distance <= 500) scores["초등학교"] = 4;
-              else if (distance <= 700) scores["초등학교"] = 3;
-              else if (distance <= 1000) scores["초등학교"] = 2;
-              else scores["초등학교"] = 1;
-
-              drawChart(scores);
-            }
-          }, { location: latlng, radius: 1000 });
+    function searchAddress() {
+      const address = document.getElementById("address").value;
+      naver.maps.Service.geocode({ query: address }, function(status, response) {
+        if (status !== naver.maps.Service.Status.OK) {
+          alert('주소를 찾을 수 없습니다.');
+          return;
         }
-      }
+        const result = response.v2.addresses[0];
+        const lat = parseFloat(result.y);
+        const lng = parseFloat(result.x);
+        const coord = new naver.maps.LatLng(lat, lng);
 
-      function getDistance(lat1, lon1, lat2, lon2) {
-        const R = 6371e3;
-        const φ1 = lat1 * Math.PI/180;
-        const φ2 = lat2 * Math.PI/180;
-        const Δφ = (lat2-lat1) * Math.PI/180;
-        const Δλ = (lon2-lon1) * Math.PI/180;
-        const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
-                  Math.cos(φ1) * Math.cos(φ2) *
-                  Math.sin(Δλ/2) * Math.sin(Δλ/2);
-        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-        return R * c;
-      }
+        if (!map) {
+          map = new naver.maps.Map('map', {
+            center: coord,
+            zoom: 16
+          });
+        } else {
+          map.setCenter(coord);
+        }
 
-      function drawChart(scores) {
-        const total = scores["단지"] + scores["인프라"] + scores["초등학교"];
-        document.getElementById("score").innerText = total;
-        const ctx = document.getElementById("chart").getContext("2d");
-        if (window.myChart) window.myChart.destroy();
-        window.myChart = new Chart(ctx, {
-          type: 'bar',
-          data: {
-            labels: ["주거단지 규모", "1km 내 인프라", "초등학교 접근성"],
-            datasets: [{
-              label: "항목별 점수",
-              data: [scores["단지"], scores["인프라"], scores["초등학교"]],
-              backgroundColor: ["#42a5f5", "#66bb6a", "#ffca28"]
-            }]
-          },
-          options: {
-            scales: { y: { beginAtZero: true, max: 5 } }
+        if (marker) marker.setMap(null);
+        marker = new naver.maps.Marker({ position: coord, map: map });
+
+        runEvaluation(coord);
+      });
+    }
+
+    function runEvaluation(coord) {
+      // 예시: 항목별 점수를 임의로 부여
+      const scores = {
+        complexScale: "B",
+        infraAccess: "A",
+        schoolAccess: "C"
+      };
+      document.getElementById("scoreOutput").innerHTML = `
+        <strong>입지 평가 결과:</strong><br>
+        🏢 주거 단지 규모: ${scores.complexScale}<br>
+        🏧 인프라 접근성: ${scores.infraAccess}<br>
+        🏫 초등학교 접근성: ${scores.schoolAccess}
+      `;
+
+      const labels = ["주거단지", "인프라", "초등학교"];
+      const data = [
+        scoreToNumber(scores.complexScale),
+        scoreToNumber(scores.infraAccess),
+        scoreToNumber(scores.schoolAccess)
+      ];
+      drawChart(labels, data);
+    }
+
+    function scoreToNumber(score) {
+      return { A: 5, B: 4, C: 3, D: 2, E: 1 }[score] || 0;
+    }
+
+    function drawChart(labels, data) {
+      const ctx = document.getElementById('scoreChart');
+      new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: '입지 평가 점수',
+            data: data,
+            borderWidth: 1
+          }]
+        },
+        options: {
+          scales: {
+            y: { beginAtZero: true, max: 5 }
           }
-        });
-      }
-    });
+        }
+      });
+    }
   </script>
 </body>
 </html>
