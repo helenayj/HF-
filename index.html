@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>네이버 지도 기반 입지 평가</title>
+  <script src="https://openapi.map.naver.com/openapi/v3/maps.js?ncpClientId=test-client-id&submodules=geocoder"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 40px; background: #f0f2f5; }
+    h1 { color: #1e88e5; }
+    input { width: 300px; padding: 8px; margin-bottom: 10px; }
+    button { padding: 8px 16px; background: #1e88e5; color: white; border: none; cursor: pointer; }
+    #map { width: 100%; height: 400px; margin-top: 20px; }
+    .result { margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <h1>입지 평가 자동 분석 (네이버 지도)</h1>
+  <input type="text" id="address" placeholder="예: 서울특별시 강남구 테헤란로 123">
+  <button onclick="searchLocation()">입지 분석 시작</button>
+  <div id="map"></div>
+  <div class="result">
+    <h2>입지 점수: <span id="score">0</span> / 10</h2>
+    <canvas id="chart"></canvas>
+  </div>
+
+  <script>
+    let map, marker;
+    let service;
+
+    function searchLocation() {
+      const address = document.getElementById('address').value;
+      naver.maps.Service.geocode({ query: address }, function(status, response) {
+        if (status !== naver.maps.Service.Status.OK) {
+          alert('주소를 찾을 수 없습니다.');
+          return;
+        }
+        const result = response.v2.addresses[0];
+        const lat = parseFloat(result.y);
+        const lng = parseFloat(result.x);
+        showMap(lat, lng);
+        analyzeArea(lat, lng);
+      });
+    }
+
+    function showMap(lat, lng) {
+      const mapDiv = document.getElementById('map');
+      const location = new naver.maps.LatLng(lat, lng);
+      if (!map) {
+        map = new naver.maps.Map(mapDiv, {
+          center: location,
+          zoom: 15
+        });
+      } else {
+        map.setCenter(location);
+      }
+      if (marker) marker.setMap(null);
+      marker = new naver.maps.Marker({ position: location, map: map });
+    }
+
+    function analyzeArea(lat, lng) {
+      // 실제 네이버 주변 검색 API는 제공되지 않아 모의 계산
+      // 실환경에서는 장소 API, 공공데이터 등 연동 필요
+      const mockScores = {
+        학교: Math.floor(Math.random() * 4),
+        지하철: Math.floor(Math.random() * 3),
+        편의시설: Math.floor(Math.random() * 6)
+      };
+      showResults(mockScores);
+    }
+
+    function showResults(scores) {
+      const total = Math.min(scores["학교"], 3) + Math.min(scores["지하철"], 2) + Math.min(scores["편의시설"], 5);
+      document.getElementById("score").innerText = total;
+      const ctx = document.getElementById("chart").getContext("2d");
+      if (window.myChart) window.myChart.destroy();
+      window.myChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: ["학교 수", "지하철역 수", "편의시설 수"],
+          datasets: [{
+            label: "입지 항목별 점수",
+            data: [Math.min(scores["학교"], 3), Math.min(scores["지하철"], 2), Math.min(scores["편의시설"], 5)],
+            backgroundColor: ["#42a5f5", "#66bb6a", "#ffca28"]
+          }]
+        },
+        options: {
+          scales: { y: { beginAtZero: true, max: 5 } }
+        }
+      });
+    }
+  </script>
+</body>
+</html>
