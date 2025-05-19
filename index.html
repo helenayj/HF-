@@ -3,8 +3,6 @@
 <head>
   <meta charset="UTF-8">
   <title>입지 평가 자동 분석</title>
-  <script type="text/javascript" src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=569dd4860d5c50fec04894c349779ea1&libraries=services"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     body { font-family: Arial, sans-serif; margin: 40px; background: #f9f9f9; }
     h1 { color: #1e88e5; }
@@ -27,78 +25,86 @@
     <canvas id="chart"></canvas>
   </div>
 
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Kakao Maps SDK -->
+  <script type="text/javascript" src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=569dd4860d5c50fec04894c349779ea1&libraries=services"></script>
+
+  <!-- Main JS -->
   <script>
-    let map, ps, geocoder;
+    document.addEventListener('DOMContentLoaded', function () {
+      let map, ps, geocoder;
 
-    function initMap(lat, lng) {
-      const container = document.getElementById('map');
-      const options = { center: new kakao.maps.LatLng(lat, lng), level: 3 };
-      map = new kakao.maps.Map(container, options);
-      const marker = new kakao.maps.Marker({ position: new kakao.maps.LatLng(lat, lng) });
-      marker.setMap(map);
-      ps = new kakao.maps.services.Places();
-    }
+      function initMap(lat, lng) {
+        const container = document.getElementById('map');
+        const options = { center: new kakao.maps.LatLng(lat, lng), level: 3 };
+        map = new kakao.maps.Map(container, options);
+        const marker = new kakao.maps.Marker({ position: new kakao.maps.LatLng(lat, lng) });
+        marker.setMap(map);
+        ps = new kakao.maps.services.Places();
+      }
 
-    function searchLocation() {
-      const addr = document.getElementById('address').value;
-      geocoder = new kakao.maps.services.Geocoder();
-      geocoder.addressSearch(addr, function(result, status) {
-        if (status === kakao.maps.services.Status.OK) {
-          const lat = result[0].y;
-          const lng = result[0].x;
-          initMap(lat, lng);
-          analyzeArea(lat, lng);
-        } else {
-          alert("주소를 찾을 수 없습니다.");
-        }
-      });
-    }
-
-    function analyzeArea(lat, lng) {
-      const keywords = ["초등학교", "중학교", "고등학교", "지하철역", "마트", "병원"];
-      const scores = { 학교: 0, 지하철: 0, 편의시설: 0 };
-      let completed = 0;
-
-      keywords.forEach(keyword => {
-        const callback = (data, status) => {
+      window.searchLocation = function () {
+        const addr = document.getElementById('address').value;
+        geocoder = new kakao.maps.services.Geocoder();
+        geocoder.addressSearch(addr, function (result, status) {
           if (status === kakao.maps.services.Status.OK) {
-            const count = data.length;
-            if (keyword.includes("학교")) scores["학교"] += count;
-            else if (keyword.includes("지하철")) scores["지하철"] += count;
-            else scores["편의시설"] += count;
+            const lat = result[0].y;
+            const lng = result[0].x;
+            initMap(lat, lng);
+            analyzeArea(lat, lng);
+          } else {
+            alert("주소를 찾을 수 없습니다.");
           }
-          completed++;
-          if (completed === keywords.length) showResults(scores);
-        };
-
-        ps.keywordSearch(keyword, callback, {
-          location: new kakao.maps.LatLng(lat, lng),
-          radius: 500
         });
-      });
-    }
+      }
 
-    function showResults(scores) {
-      const total = Math.min(scores["학교"], 3) + Math.min(scores["지하철"], 2) + Math.min(scores["편의시설"], 5);
-      document.getElementById("score").innerText = total;
+      function analyzeArea(lat, lng) {
+        const keywords = ["초등학교", "중학교", "고등학교", "지하철역", "마트", "병원"];
+        const scores = { 학교: 0, 지하철: 0, 편의시설: 0 };
+        let completed = 0;
 
-      const ctx = document.getElementById("chart").getContext("2d");
-      if (window.myChart) window.myChart.destroy();
-      window.myChart = new Chart(ctx, {
-        type: "bar",
-        data: {
-          labels: ["학교 수", "지하철역 수", "편의시설 수"],
-          datasets: [{
-            label: "입지 항목별 점수",
-            data: [Math.min(scores["학교"], 3), Math.min(scores["지하철"], 2), Math.min(scores["편의시설"], 5)],
-            backgroundColor: ["#42a5f5", "#66bb6a", "#ffca28"]
-          }]
-        },
-        options: {
-          scales: { y: { beginAtZero: true, max: 5 } }
-        }
-      });
-    }
+        keywords.forEach(keyword => {
+          const callback = (data, status) => {
+            if (status === kakao.maps.services.Status.OK) {
+              const count = data.length;
+              if (keyword.includes("학교")) scores["학교"] += count;
+              else if (keyword.includes("지하철")) scores["지하철"] += count;
+              else scores["편의시설"] += count;
+            }
+            completed++;
+            if (completed === keywords.length) showResults(scores);
+          };
+
+          ps.keywordSearch(keyword, callback, {
+            location: new kakao.maps.LatLng(lat, lng),
+            radius: 500
+          });
+        });
+      }
+
+      function showResults(scores) {
+        const total = Math.min(scores["학교"], 3) + Math.min(scores["지하철"], 2) + Math.min(scores["편의시설"], 5);
+        document.getElementById("score").innerText = total;
+
+        const ctx = document.getElementById("chart").getContext("2d");
+        if (window.myChart) window.myChart.destroy();
+        window.myChart = new Chart(ctx, {
+          type: "bar",
+          data: {
+            labels: ["학교 수", "지하철역 수", "편의시설 수"],
+            datasets: [{
+              label: "입지 항목별 점수",
+              data: [Math.min(scores["학교"], 3), Math.min(scores["지하철"], 2), Math.min(scores["편의시설"], 5)],
+              backgroundColor: ["#42a5f5", "#66bb6a", "#ffca28"]
+            }]
+          },
+          options: {
+            scales: { y: { beginAtZero: true, max: 5 } }
+          }
+        });
+      }
+    });
   </script>
 </body>
 </html>
