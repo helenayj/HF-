@@ -2,9 +2,10 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>입지 평가 자동 분석 (네이버 지도)</title>
+  <title>입지 평가 자동 분석 (네이버 지도 + 카카오 주소검색)</title>
   <script src="https://openapi.map.naver.com/openapi/v3/maps.js?ncpClientId=ijcu1m8r4k"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=569dd4860d5c50fec04894c349779ea1&libraries=services"></script>
   <style>
     body { font-family: Arial, sans-serif; margin: 40px; background: #f5f5f5; }
     h1 { color: #1e88e5; }
@@ -27,18 +28,21 @@
 
   <script>
     let map, marker;
-    let geocoder = new naver.maps.Service();
 
     function searchLocation() {
       const address = document.getElementById("address").value;
-      naver.maps.Service.geocode({ query: address }, function(status, response) {
-        if (status !== naver.maps.Service.Status.OK) {
-          return alert('주소를 찾을 수 없습니다.');
+      const geocoder = new kakao.maps.services.Geocoder();
+
+      geocoder.addressSearch(address, function(result, status) {
+        if (status === kakao.maps.services.Status.OK) {
+          const lat = parseFloat(result[0].y);
+          const lng = parseFloat(result[0].x);
+          const latlng = new naver.maps.LatLng(lat, lng);
+          showMap(latlng);
+          analyzeLocation(latlng);
+        } else {
+          alert("주소를 찾을 수 없습니다.");
         }
-        const result = response.v2.addresses[0];
-        const latlng = new naver.maps.LatLng(result.y, result.x);
-        showMap(latlng);
-        analyzeLocation(latlng);
       });
     }
 
@@ -61,7 +65,6 @@
       else if (totalUnits > 300) scores["단지"] = 2;
       else scores["단지"] = 1;
 
-      // 인프라 및 초등학교는 현재 시뮬레이션용으로 랜덤 점수
       scores["인프라"] = Math.floor(Math.random() * 5) + 1;
       scores["초등학교"] = Math.floor(Math.random() * 5) + 1;
 
