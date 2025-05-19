@@ -2,27 +2,22 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>입지 평가 자동 분석</title>
+  <title>네이버 지도 기반 입지 평가</title>
+  <script src="https://openapi.map.naver.com/openapi/v3/maps.js?ncpClientId=test-client-id&submodules=geocoder"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
-    body { font-family: Arial, sans-serif; margin: 40px; background: #f9f9f9; }
+    body { font-family: Arial, sans-serif; margin: 40px; background: #f0f2f5; }
     h1 { color: #1e88e5; }
     input { width: 300px; padding: 8px; margin-bottom: 10px; }
     button { padding: 8px 16px; background: #1e88e5; color: white; border: none; cursor: pointer; }
     #map { width: 100%; height: 400px; margin-top: 20px; }
     .result { margin-top: 20px; }
   </style>
-  <!-- Chart.js -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <!-- Kakao Maps SDK -->
-  <script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=569dd4860d5c50fec04894c349779ea1&autoload=false&libraries=services"></script>
 </head>
 <body>
-  <h1>입지 평가 자동 분석</h1>
-  <p>사업장 주소를 입력하면 주변 인프라를 자동으로 분석하고 점수를 보여줍니다.</p>
-
+  <h1>입지 평가 자동 분석 (네이버 지도)</h1>
   <input type="text" id="address" placeholder="예: 서울특별시 강남구 테헤란로 123">
   <button onclick="searchLocation()">입지 분석 시작</button>
-
   <div id="map"></div>
   <div class="result">
     <h2>입지 점수: <span id="score">0</span> / 10</h2>
@@ -30,79 +25,70 @@
   </div>
 
   <script>
-    kakao.maps.load(function () {
-      let map, ps, geocoder;
+    let map, marker;
+    let service;
 
-      function initMap(lat, lng) {
-        const container = document.getElementById('map');
-        const options = { center: new kakao.maps.LatLng(lat, lng), level: 3 };
-        map = new kakao.maps.Map(container, options);
-        const marker = new kakao.maps.Marker({ position: new kakao.maps.LatLng(lat, lng) });
-        marker.setMap(map);
-        ps = new kakao.maps.services.Places();
-      }
+    function searchLocation() {
+      const address = document.getElementById('address').value;
+      naver.maps.Service.geocode({ query: address }, function(status, response) {
+        if (status !== naver.maps.Service.Status.OK) {
+          alert('주소를 찾을 수 없습니다.');
+          return;
+        }
+        const result = response.v2.addresses[0];
+        const lat = parseFloat(result.y);
+        const lng = parseFloat(result.x);
+        showMap(lat, lng);
+        analyzeArea(lat, lng);
+      });
+    }
 
-      window.searchLocation = function () {
-        const addr = document.getElementById('address').value;
-        geocoder = new kakao.maps.services.Geocoder();
-        geocoder.addressSearch(addr, function (result, status) {
-          if (status === kakao.maps.services.Status.OK) {
-            const lat = result[0].y;
-            const lng = result[0].x;
-            initMap(lat, lng);
-            analyzeArea(lat, lng);
-          } else {
-            alert("주소를 찾을 수 없습니다.");
-          }
+    function showMap(lat, lng) {
+      const mapDiv = document.getElementById('map');
+      const location = new naver.maps.LatLng(lat, lng);
+      if (!map) {
+        map = new naver.maps.Map(mapDiv, {
+          center: location,
+          zoom: 15
         });
+      } else {
+        map.setCenter(location);
       }
+      if (marker) marker.setMap(null);
+      marker = new naver.maps.Marker({ position: location, map: map });
+    }
 
-      function analyzeArea(lat, lng) {
-        const keywords = ["초등학교", "중학교", "고등학교", "지하철역", "마트", "병원"];
-        const scores = { 학교: 0, 지하철: 0, 편의시설: 0 };
-        let completed = 0;
+    function analyzeArea(lat, lng) {
+      // 실제 네이버 주변 검색 API는 제공되지 않아 모의 계산
+      // 실환경에서는 장소 API, 공공데이터 등 연동 필요
+      const mockScores = {
+        학교: Math.floor(Math.random() * 4),
+        지하철: Math.floor(Math.random() * 3),
+        편의시설: Math.floor(Math.random() * 6)
+      };
+      showResults(mockScores);
+    }
 
-        keywords.forEach(keyword => {
-          const callback = (data, status) => {
-            if (status === kakao.maps.services.Status.OK) {
-              const count = data.length;
-              if (keyword.includes("학교")) scores["학교"] += count;
-              else if (keyword.includes("지하철")) scores["지하철"] += count;
-              else scores["편의시설"] += count;
-            }
-            completed++;
-            if (completed === keywords.length) showResults(scores);
-          };
-
-          ps.keywordSearch(keyword, callback, {
-            location: new kakao.maps.LatLng(lat, lng),
-            radius: 500
-          });
-        });
-      }
-
-      function showResults(scores) {
-        const total = Math.min(scores["학교"], 3) + Math.min(scores["지하철"], 2) + Math.min(scores["편의시설"], 5);
-        document.getElementById("score").innerText = total;
-
-        const ctx = document.getElementById("chart").getContext("2d");
-        if (window.myChart) window.myChart.destroy();
-        window.myChart = new Chart(ctx, {
-          type: "bar",
-          data: {
-            labels: ["학교 수", "지하철역 수", "편의시설 수"],
-            datasets: [{
-              label: "입지 항목별 점수",
-              data: [Math.min(scores["학교"], 3), Math.min(scores["지하철"], 2), Math.min(scores["편의시설"], 5)],
-              backgroundColor: ["#42a5f5", "#66bb6a", "#ffca28"]
-            }]
-          },
-          options: {
-            scales: { y: { beginAtZero: true, max: 5 } }
-          }
-        });
-      }
-    });
+    function showResults(scores) {
+      const total = Math.min(scores["학교"], 3) + Math.min(scores["지하철"], 2) + Math.min(scores["편의시설"], 5);
+      document.getElementById("score").innerText = total;
+      const ctx = document.getElementById("chart").getContext("2d");
+      if (window.myChart) window.myChart.destroy();
+      window.myChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: ["학교 수", "지하철역 수", "편의시설 수"],
+          datasets: [{
+            label: "입지 항목별 점수",
+            data: [Math.min(scores["학교"], 3), Math.min(scores["지하철"], 2), Math.min(scores["편의시설"], 5)],
+            backgroundColor: ["#42a5f5", "#66bb6a", "#ffca28"]
+          }]
+        },
+        options: {
+          scales: { y: { beginAtZero: true, max: 5 } }
+        }
+      });
+    }
   </script>
 </body>
 </html>
