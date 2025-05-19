@@ -11,6 +11,10 @@
     #map { width: 100%; height: 400px; margin-top: 20px; }
     .result { margin-top: 20px; }
   </style>
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Kakao Maps SDK with defer -->
+  <script defer src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=569dd4860d5c50fec04894c349779ea1&libraries=services"></script>
 </head>
 <body>
   <h1>입지 평가 자동 분석</h1>
@@ -25,14 +29,8 @@
     <canvas id="chart"></canvas>
   </div>
 
-  <!-- Chart.js -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <!-- Kakao Maps SDK -->
-  <script type="text/javascript" src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=569dd4860d5c50fec04894c349779ea1&libraries=services"></script>
-
-  <!-- Main JS -->
   <script>
-    document.addEventListener('DOMContentLoaded', function () {
+    window.onload = function () {
       let map, ps, geocoder;
 
       function initMap(lat, lng) {
@@ -104,7 +102,7 @@
           }
         });
       }
-    });
+    }
   </script>
 </body>
 </html>
