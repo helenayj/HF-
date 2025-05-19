@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <title>입지 평가 자동화 시스템</title>
+  <!-- autoload=false 꼭 넣기! -->
   <script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=e978f9c48f502b3294788dcf7b3b67f0&autoload=false&libraries=services"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
@@ -26,6 +27,7 @@
   </div>
 
   <script>
+    // kakao 로딩 후 실행되도록 감싸기
     kakao.maps.load(function () {
       let map, marker;
 
