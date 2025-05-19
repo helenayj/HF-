@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <title>입지 평가 자동화 시스템</title>
-  <script type="text/javascript" src="https://openapi.map.naver.com/openapi/v3/maps.js?ncpClientId=YOUR_CLIENT_ID&submodules=geocoder"></script>
+  <script type="text/javascript" src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=e978f9c48f502b3294788dcf7b3b67f0&libraries=services"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     body { font-family: Arial, sans-serif; margin: 30px; background: #f4f4f4; }
@@ -31,34 +31,35 @@
 
     function searchAddress() {
       const address = document.getElementById("address").value;
-      naver.maps.Service.geocode({ query: address }, function(status, response) {
-        if (status !== naver.maps.Service.Status.OK) {
+      const geocoder = new kakao.maps.services.Geocoder();
+
+      geocoder.addressSearch(address, function(result, status) {
+        if (status !== kakao.maps.services.Status.OK) {
           alert('주소를 찾을 수 없습니다.');
           return;
         }
-        const result = response.v2.addresses[0];
-        const lat = parseFloat(result.y);
-        const lng = parseFloat(result.x);
-        const coord = new naver.maps.LatLng(lat, lng);
+
+        const lat = parseFloat(result[0].y);
+        const lng = parseFloat(result[0].x);
+        const coord = new kakao.maps.LatLng(lat, lng);
+
+        const container = document.getElementById('map');
+        const options = { center: coord, level: 3 };
 
         if (!map) {
-          map = new naver.maps.Map('map', {
-            center: coord,
-            zoom: 16
-          });
+          map = new kakao.maps.Map(container, options);
         } else {
           map.setCenter(coord);
         }
 
         if (marker) marker.setMap(null);
-        marker = new naver.maps.Marker({ position: coord, map: map });
+        marker = new kakao.maps.Marker({ position: coord, map: map });
 
         runEvaluation(coord);
       });
     }
 
     function runEvaluation(coord) {
-      // 예시: 항목별 점수를 임의로 부여
       const scores = {
         complexScale: "B",
         infraAccess: "A",
