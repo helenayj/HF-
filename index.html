@@ -18,7 +18,7 @@
 <body>
   <h1>입지 평가 자동 분석</h1>
   <input type="text" id="address" placeholder="주소를 입력하세요 (예: 서울 강남구 테헤란로 123)">
-  <button onclick="searchLocation()">분석 시작</button>
+  <button id="analyzeBtn">분석 시작</button>
 
   <div id="map"></div>
   <div class="result">
@@ -30,7 +30,7 @@
     kakao.maps.load(function () {
       let map, marker;
 
-      window.searchLocation = function () {
+      function searchLocation() {
         const address = document.getElementById("address").value;
         const geocoder = new kakao.maps.services.Geocoder();
 
@@ -92,6 +92,8 @@
           }
         });
       }
+
+      document.getElementById("analyzeBtn").addEventListener("click", searchLocation);
     });
   </script>
 </body>
